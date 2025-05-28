@@ -1,55 +1,38 @@
-from tkinter import *
 from tkinter import filedialog
 from PIL import Image
+import numpy as np
 import math
+import scipy.ndimage
 
-blur_strength = 2
-mean = 1
-a = 255
+def gaussian_kernel(size, sigma):
+    """Generate a 2D Gaussian kernel."""
+    ax = np.arange(-size // 2 + 1., size // 2 + 1.)
+    xx, yy = np.meshgrid(ax, ax)
+    kernel = np.exp(-(xx**2 + yy**2) / (2. * sigma**2))
+    return kernel / np.sum(kernel)
 
-def gaussian(num, mean, blur_strength):
-    return (1 / math.sqrt(2 * math.pi * (blur_strength * 0.5))) * math.pow(math.e, -((num - mean) ** 2) / blur_strength)
-
-
+# Select and load image
 file = filedialog.askopenfilename(title="Find image")
-img = Image.open(file)
-img.show()
+img = Image.open(file).convert("RGB")  # Or "RGBA" if alpha is needed
 
-pixels = img.load()
+# Convert to NumPy array
+img_np = np.array(img)
+height, width = img_np.shape[:2]
 
-width, height = img.size
-for y in range(height):
-    for x in range(width):
-        try:
-            r, g, b, a = pixels[x, y]
-        except:
-            r, g, b = pixels[x, y]
+# Set blur parameters
+blur_strength = 0
+mean = height // 25
+sigma = {0: mean/8, 1: mean/4, 2: mean/2, 3: mean, 4: mean*2}[blur_strength]
+kernel_size = int(2 * mean + 1)
 
-pixel_values = list(img.getdata())
+# Precompute Gaussian kernel
+kernel = gaussian_kernel(kernel_size, sigma)
 
-for y in range(height):
-    for x in range(width):
-        new_r = 0
-        new_g = 0
-        new_b = 0
-        n = 0
-        for i in range(mean*2+1):
-            for j in range(mean*2+1):
-                if (x - mean + i >= 0 and y - mean + j >= 0 and x - mean + i < width and y - mean + j < height):
-                    pixel = pixels[x - mean + i, y - mean + j]
-                    n = n + 1
-                    #print(pixel)
-                    try:
-                        temp_r, temp_g, temp_b, a = pixel
-                    except ValueError:
-                        temp_r, temp_g, temp_b = pixel
-                    new_r = int(new_r + temp_r * gaussian(n, mean, blur_strength))
-                    new_g = int(new_g + temp_g * gaussian(n, mean, blur_strength))
-                    new_b = int(new_b + temp_b * gaussian(n, mean, blur_strength))
-        try:
-            pixels[x, y] = (new_r, new_g, new_b)
-        except:
-            pixels[x, y] = (new_r, new_g, new_b, a)
-        #print(new_r, new_g, new_b)
+# Apply convolution on each channel separately
+blurred = np.zeros_like(img_np)
+for c in range(3):  # For R, G, B channels
+    blurred[..., c] = scipy.ndimage.convolve(img_np[..., c], kernel, mode='reflect')
 
-img.show()
+# Convert back to image
+blurred_img = Image.fromarray(blurred)
+blurred_img.show()

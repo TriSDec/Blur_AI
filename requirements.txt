@@ -1,0 +1,7 @@
+opencv-python>=4.8,<5
+numpy>=1.24
+Pillow>=10.0
+customtkinter>=5.2
+# Optional, more accurate detector (needs CMake + a C++ compiler to build dlib):
+# face_recognition>=1.3
+
